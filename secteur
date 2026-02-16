@@ -1,0 +1,252 @@
+import React, { useState, useMemo } from 'react';
+import { 
+  Circle, 
+  Calculator, 
+  ChevronRight, 
+  RefreshCw, 
+  Equal,
+  Info
+} from 'lucide-react';
+
+const App = () => {
+  // --- Etats ---
+  // Rayon entre 1 et 20 comme demande
+  const [radius, setRadius] = useState(10);
+  const [angle, setAngle] = useState(90);
+  
+  const [calcValues, setCalcValues] = useState({
+    total: '', 
+    part: '',  
+    angle: '', 
+  });
+  const [calcResult, setCalcResult] = useState(null);
+
+  // --- Calculs mathematiques ---
+  const stats = useMemo(() => {
+    const circumference = 2 * Math.PI * radius;
+    const totalArea = Math.PI * Math.pow(radius, 2);
+    
+    // On limite l'angle pour le calcul des mesures
+    const displayAngle = Math.min(Math.max(angle, 0.01), 360);
+    
+    const arcLength = (displayAngle / 360) * circumference;
+    const sectorArea = (displayAngle / 360) * totalArea;
+    const ratio = displayAngle / 360;
+    
+    return { circumference, totalArea, arcLength, sectorArea, ratio };
+  }, [radius, angle]);
+
+  // --- Logique du dessin SVG ---
+  const centerX = 150;
+  const centerY = 150;
+  const svgRadius = 110; 
+  
+  const getCoords = (ang) => {
+    // Conversion degres en radians pour le dessin
+    const rad = (ang - 90) * (Math.PI / 180);
+    return {
+      x: centerX + svgRadius * Math.cos(rad),
+      y: centerY + svgRadius * Math.sin(rad)
+    };
+  };
+
+  const endPoint = getCoords(angle);
+  const isLargeArc = angle > 180 ? 1 : 0;
+  
+  // Creation du chemin SVG (Secteur)
+  // Si l'angle est 360, on dessine un cercle complet
+  let d = "";
+  if (angle >= 360) {
+    d = `M ${centerX}, ${centerY - svgRadius} a ${svgRadius},${svgRadius} 0 1,0 0.1,0 z`;
+  } else if (angle <= 0) {
+    d = "";
+  } else {
+    d = `M ${centerX} ${centerY} L ${centerX} ${centerY - svgRadius} A ${svgRadius} ${svgRadius} 0 ${isLargeArc} 1 ${endPoint.x} ${endPoint.y} Z`;
+  }
+
+  // --- Fonction du calculateur manuel ---
+  const runManualCalculation = () => {
+    const t = parseFloat(calcValues.total);
+    const p = parseFloat(calcValues.part);
+    const a = parseFloat(calcValues.angle);
+
+    if (!isNaN(t) && !isNaN(a) && isNaN(p)) {
+      setCalcResult({ label: "Valeur de la partie", value: ((a / 360) * t).toFixed(2) });
+    } else if (!isNaN(p) && !isNaN(a) && isNaN(t)) {
+      setCalcResult({ label: "Valeur totale", value: ((p * 360) / a).toFixed(2) });
+    } else if (!isNaN(p) && !isNaN(t) && isNaN(a)) {
+      setCalcResult({ label: "Angle au centre", value: ((p / t) * 360).toFixed(2) + " degres" });
+    } else {
+      setCalcResult({ error: "Veuillez remplir exactement deux champs." });
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-50 text-slate-900 p-4 font-sans">
+      <div className="max-w-5xl mx-auto space-y-6">
+        
+        {/* Entete */}
+        <div className="bg-indigo-600 text-white p-6 rounded-2xl shadow-md">
+          <h1 className="text-2xl font-bold flex items-center gap-2">
+            <Circle /> Rapports et Proportions
+          </h1>
+          <p className="text-indigo-100 text-sm opacity-90">Etude visuelle : Rayon de 1 a 20 | Angle de 1 a 360</p>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          
+          {/* Colonne Gauche : Visuel et Rapports */}
+          <div className="space-y-6">
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+              <div className="flex justify-center bg-slate-50 p-4 rounded-xl mb-6 border border-slate-100">
+                <svg width="240" height="240" viewBox="0 0 300 300">
+                  {/* Cercle de fond */}
+                  <circle cx={centerX} cy={centerY} r={svgRadius} fill="white" stroke="#e2e8f0" strokeWidth="2" />
+                  {/* Secteur colore */}
+                  <path d={d} fill="#818cf8" fillOpacity="0.6" stroke="#4f46e5" strokeWidth="3" />
+                  {/* Centre */}
+                  <circle cx={centerX} cy={centerY} r="4" fill="#1e1b4b" />
+                </svg>
+              </div>
+
+              <div className="space-y-6">
+                <div className="space-y-2">
+                  <div className="flex justify-between font-bold text-xs text-slate-500 uppercase">
+                    <span>Rayon (r) : {radius}</span>
+                  </div>
+                  <input 
+                    type="range" min="1" max="20" step="0.5" value={radius} 
+                    onChange={(e) => setRadius(Number(e.target.value))} 
+                    className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600" 
+                  />
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between font-bold text-xs text-slate-500 uppercase">
+                    <span>Angle : {angle} degres</span>
+                  </div>
+                  <input 
+                    type="range" min="1" max="360" value={angle} 
+                    onChange={(e) => setAngle(Number(e.target.value))} 
+                    className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600" 
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Analyse des divisions */}
+            <div className="bg-white p-6 rounded-2xl border-2 border-indigo-100 shadow-sm">
+              <h2 className="font-bold text-indigo-700 mb-4 flex items-center gap-2">
+                <Equal size={18} /> Comparaison des rapports
+              </h2>
+              <div className="grid grid-cols-3 gap-2 text-center text-[10px] md:text-xs">
+                <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
+                  <div className="font-bold text-slate-400 mb-1">ANGLE</div>
+                  <div className="border-b border-slate-300 pb-1">{angle}</div>
+                  <div className="pt-1 text-slate-500">360</div>
+                  <div className="mt-2 font-black text-indigo-600">{(angle/360).toFixed(4)}</div>
+                </div>
+                <div className="p-3 bg-indigo-50 rounded-lg border border-indigo-100">
+                  <div className="font-bold text-indigo-400 mb-1">ARC</div>
+                  <div className="border-b border-indigo-300 pb-1">{stats.arcLength.toFixed(2)}</div>
+                  <div className="pt-1 text-indigo-500">{stats.circumference.toFixed(2)}</div>
+                  <div className="mt-2 font-black text-indigo-600">{(stats.arcLength/stats.circumference).toFixed(4)}</div>
+                </div>
+                <div className="p-3 bg-emerald-50 rounded-lg border border-emerald-100">
+                  <div className="font-bold text-emerald-400 mb-1">SECTEUR</div>
+                  <div className="border-b border-emerald-300 pb-1">{stats.sectorArea.toFixed(2)}</div>
+                  <div className="pt-1 text-emerald-500">{stats.totalArea.toFixed(2)}</div>
+                  <div className="mt-2 font-black text-indigo-600">{(stats.sectorArea/stats.totalArea).toFixed(4)}</div>
+                </div>
+              </div>
+              <div className="mt-4 p-3 bg-indigo-600 text-white rounded-xl text-center text-sm font-bold">
+                Le rapport est identique pour les trois mesures !
+              </div>
+            </div>
+          </div>
+
+          {/* Colonne Droite : Calculateur */}
+          <div className="space-y-6">
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm h-full flex flex-col">
+              <h2 className="font-bold mb-6 flex items-center gap-2 text-lg">
+                <Calculator size={20} className="text-indigo-600" /> Calculateur
+              </h2>
+              <div className="space-y-5 flex-1">
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Mesure Totale (C ou A)</label>
+                  <input 
+                    placeholder="Entrez le total..." 
+                    type="number" 
+                    value={calcValues.total} 
+                    onChange={(e)=>setCalcValues({...calcValues, total: e.target.value})} 
+                    className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-400 transition-all" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Mesure Partielle (Arc ou Secteur)</label>
+                  <input 
+                    placeholder="Entrez la partie..." 
+                    type="number" 
+                    value={calcValues.part} 
+                    onChange={(e)=>setCalcValues({...calcValues, part: e.target.value})} 
+                    className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-400 transition-all" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Angle au centre (Degres)</label>
+                  <input 
+                    placeholder="Entrez l'angle..." 
+                    type="number" 
+                    value={calcValues.angle} 
+                    onChange={(e)=>setCalcValues({...calcValues, angle: e.target.value})} 
+                    className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-400 transition-all" 
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button 
+                    onClick={runManualCalculation} 
+                    className="flex-1 bg-indigo-600 text-white font-bold py-4 rounded-xl hover:bg-indigo-700 shadow-lg shadow-indigo-100 transition-all"
+                  >
+                    Calculer
+                  </button>
+                  <button 
+                    onClick={()=>{setCalcValues({total:'', part:'', angle:''}); setCalcResult(null);}} 
+                    className="p-4 bg-slate-100 rounded-xl text-slate-400 hover:bg-slate-200 transition-colors"
+                  >
+                    <RefreshCw size={20}/>
+                  </button>
+                </div>
+
+                {calcResult && (
+                  <div className={`p-4 rounded-xl border ${calcResult.error ? 'bg-red-50 text-red-600 border-red-100' : 'bg-green-50 text-green-700 border-green-100'}`}>
+                    {calcResult.error || (
+                      <div className="flex flex-col">
+                        <span className="text-xs uppercase font-bold opacity-70">{calcResult.label}</span>
+                        <span className="text-xl font-black">{calcResult.value}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-6 p-4 bg-blue-50 rounded-xl border border-blue-100">
+                <div className="flex gap-3">
+                  <Info size={16} className="text-blue-600 shrink-0 mt-0.5" />
+                  <p className="text-[11px] text-blue-800 leading-tight">
+                    Laissez vide le champ de la valeur recherchee et remplissez les deux autres pour obtenir le resultat via la proportionnalite.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <footer className="text-center text-slate-400 text-[10px] py-4 border-t uppercase tracking-widest">
+          Propriete : Partie / Tout = Angle / 360
+        </footer>
+      </div>
+    </div>
+  );
+};
+
